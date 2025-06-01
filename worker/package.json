@@ -1,12 +1,7 @@
 {
-  "name": "worker",
-  "version": "1.0.0", 
+  "name": "express-server",
+  "version": "1.0.0",
   "type": "module",
-  "main": "index.js",
-  "scripts": {
-    "build": "echo 'No build needed for JS' && mkdir -p dist && cp index.js dist/",
-    "start": "node index.js"
-  },
   "dependencies": {
     "@upstash/redis": "^1.34.0"
   }
