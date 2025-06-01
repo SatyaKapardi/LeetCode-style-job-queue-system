@@ -1,11 +1,79 @@
+// worker/index.js - Updated for manual trigger
 import { Redis } from "@upstash/redis";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+export default {
+  async fetch(request, env) {
+    const redis = new Redis({
+      url: env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN,
+    });
 
-async function processSubmission(submission: string) {
+    // Handle CORS
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    try {
+      // Check for jobs in the queue
+      const submission = await redis.rpop("problems");
+      
+      if (submission) {
+        await processSubmission(submission);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `Processed job`,
+            job: JSON.parse(submission)
+          }), 
+          { 
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "No jobs in queue"
+          }), 
+          { 
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error processing submission:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message
+        }), 
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+  },
+};
+
+async function processSubmission(submission) {
   const { problemId, code, language } = JSON.parse(submission);
   console.log(`Processing submission for problemId ${problemId}...`);
   console.log(`Code: ${code}`);
@@ -15,22 +83,3 @@ async function processSubmission(submission: string) {
   await new Promise(resolve => setTimeout(resolve, 2000));
   console.log(`Finished processing submission for problemId ${problemId}.`);
 }
-
-async function startWorker() {
-  console.log("Worker connected to Redis.");
-
-  while (true) {
-    try {
-      const submission = await redis.brpop("problems", 0);
-      if (submission && submission[1]) {
-        await processSubmission(submission[1]);
-      }
-    } catch (error) {
-      console.error("Error processing submission:", error);
-      // Wait a bit before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
-}
-
-startWorker();
