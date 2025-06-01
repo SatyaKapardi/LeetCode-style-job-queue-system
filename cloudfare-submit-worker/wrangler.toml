@@ -1,0 +1,8 @@
+name = "leetcode-submit-api"
+type = "javascript"
+
+[env.production]
+vars = { 
+  UPSTASH_REDIS_REST_URL = "https://your-upstash-url",
+  UPSTASH_REDIS_REST_TOKEN = "your-upstash-token"
+}
